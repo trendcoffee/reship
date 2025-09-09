@@ -77,59 +77,67 @@ def convert_data_to_reshipment(df, bundle_numbers=None):
     return pd.DataFrame(converted_data)
 
 def create_excel_file(converted_df):
-    """재발송 양식 엑셀 파일 생성"""
+    """재발송 양식 엑셀 파일 생성 (템플릿 기반)"""
+    # 템플릿 파일 경로
+    template_file = '수기_재발송양식.xlsx'
+    
     # 메모리에서 엑셀 파일 생성
     output = io.BytesIO()
     
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        # 기본 시트 생성
-        worksheet = writer.book.create_sheet("재발송양식")
+    # 템플릿 파일이 있으면 복사, 없으면 새로 생성
+    if os.path.exists(template_file):
+        # 템플릿 파일을 메모리로 복사
+        with open(template_file, 'rb') as f:
+            template_data = f.read()
+        output.write(template_data)
+        output.seek(0)
         
-        # 헤더 설정
-        headers = [
-            'F/C', '주문유형', '배송처', '고객ID', '판매채널', '묶음배송번호', '품목코드', 
-            '', '', '가격', '품목수량', '', '받는사람명', '', '받는사람 전화번호', 
-            '받는사람 우편번호', '받는사람 주소', '', '주문일자', '', '', '', '', '', '', '', '주문중개채널', '', '주문시간'
-        ]
+        # 템플릿 파일 로드
+        workbook = openpyxl.load_workbook(output)
+        worksheet = workbook.active
+    else:
+        # 템플릿이 없으면 새로 생성
+        workbook = openpyxl.Workbook()
+        worksheet = workbook.active
         
-        # 헤더 입력
-        for col, header in enumerate(headers, 1):
-            worksheet.cell(row=1, column=col, value=header)
+    # 데이터 입력 (2행부터)
+    start_row = 2
+    for idx, row in converted_df.iterrows():
+        current_row = start_row + idx
         
-        # 데이터 입력
-        for idx, row in converted_df.iterrows():
-            current_row = idx + 2
-            
-            # 우편번호 5자리 고정 처리
-            postal_code = str(row.get('받는사람 우편번호', '')).strip()
-            if postal_code and len(postal_code) == 4:
-                postal_code = '0' + postal_code  # 4자리면 앞에 0 추가
-            elif not postal_code:
-                postal_code = '00000'  # 빈 값이면 00000
-            
-            # 필수고정값들 (모든 행에 동일하게 입력)
-            worksheet.cell(row=current_row, column=1, value="NS001")      # F/C
-            worksheet.cell(row=current_row, column=2, value="7")          # 주문유형
-            worksheet.cell(row=current_row, column=3, value="17")         # 배송처
-            worksheet.cell(row=current_row, column=4, value="90015746")   # 고객ID
-            worksheet.cell(row=current_row, column=5, value="NFA")        # 판매채널 (고정값)
-            worksheet.cell(row=current_row, column=6, value=str(row.get('묶음배송번호', '')))  # 묶음배송번호
-            worksheet.cell(row=current_row, column=7, value=str(row.get('품목코드', '')))     # 품목코드
-            worksheet.cell(row=current_row, column=8, value="")           # 빈 컬럼
-            worksheet.cell(row=current_row, column=9, value="")           # 빈 컬럼
-            worksheet.cell(row=current_row, column=10, value=str(row.get('가격', '')))       # 가격
-            worksheet.cell(row=current_row, column=11, value=str(row.get('품목수량', '')))   # 품목수량
-            worksheet.cell(row=current_row, column=12, value="")          # 빈 컬럼
-            worksheet.cell(row=current_row, column=13, value=str(row.get('받는사람명', ''))) # 받는사람명
-            worksheet.cell(row=current_row, column=14, value="")          # 빈 컬럼
-            worksheet.cell(row=current_row, column=15, value=str(row.get('받는사람 전화번호', ''))) # 받는사람 전화번호
-            worksheet.cell(row=current_row, column=16, value=postal_code) # 받는사람 우편번호 (5자리 고정)
-            worksheet.cell(row=current_row, column=17, value=str(row.get('받는사람 주소', ''))) # 받는사람 주소
-            worksheet.cell(row=current_row, column=18, value="")          # 빈 컬럼
-            worksheet.cell(row=current_row, column=19, value=str(row.get('주문일자', '')))   # 주문일자
-            worksheet.cell(row=current_row, column=28, value="SELF")      # 주문중개채널
-            worksheet.cell(row=current_row, column=30, value="09:00:00")  # 주문시간
+        # 우편번호 5자리 고정 처리
+        postal_code = str(row.get('받는사람 우편번호', '')).strip()
+        if postal_code and len(postal_code) == 4:
+            postal_code = '0' + postal_code  # 4자리면 앞에 0 추가
+        elif not postal_code:
+            postal_code = '00000'  # 빈 값이면 00000
+        
+        # 필수고정값들 (모든 행에 동일하게 입력)
+        worksheet.cell(row=current_row, column=1, value="NS001")      # F/C
+        worksheet.cell(row=current_row, column=2, value="7")          # 주문유형
+        worksheet.cell(row=current_row, column=3, value="17")         # 배송처
+        worksheet.cell(row=current_row, column=4, value="90015746")   # 고객ID
+        worksheet.cell(row=current_row, column=5, value="NFA")        # 판매채널 (고정값)
+        worksheet.cell(row=current_row, column=6, value=str(row.get('묶음배송번호', '')))  # 묶음배송번호
+        worksheet.cell(row=current_row, column=7, value=str(row.get('품목코드', '')))     # 품목코드
+        worksheet.cell(row=current_row, column=8, value="")           # 빈 컬럼
+        worksheet.cell(row=current_row, column=9, value="")           # 빈 컬럼
+        worksheet.cell(row=current_row, column=10, value=str(row.get('가격', '')))       # 가격
+        worksheet.cell(row=current_row, column=11, value=str(row.get('품목수량', '')))   # 품목수량
+        worksheet.cell(row=current_row, column=12, value="")          # 빈 컬럼
+        worksheet.cell(row=current_row, column=13, value=str(row.get('받는사람명', ''))) # 받는사람명
+        worksheet.cell(row=current_row, column=14, value="")          # 빈 컬럼
+        worksheet.cell(row=current_row, column=15, value=str(row.get('받는사람 전화번호', ''))) # 받는사람 전화번호
+        worksheet.cell(row=current_row, column=16, value=postal_code) # 받는사람 우편번호 (5자리 고정)
+        worksheet.cell(row=current_row, column=17, value=str(row.get('받는사람 주소', ''))) # 받는사람 주소
+        worksheet.cell(row=current_row, column=18, value="")          # 빈 컬럼
+        worksheet.cell(row=current_row, column=19, value=str(row.get('주문일자', '')))   # 주문일자
+        worksheet.cell(row=current_row, column=28, value="SELF")      # 주문중개채널
+        worksheet.cell(row=current_row, column=30, value="09:00:00")  # 주문시간
     
+    # 파일 저장
+    output = io.BytesIO()
+    workbook.save(output)
     output.seek(0)
     return output
 
@@ -156,7 +164,7 @@ def main():
                 df = pd.read_excel(uploaded_file)
                 
                 # 변환 버튼
-                if st.button("🔄 변환 시작", type="primary"):
+                if st.button("🔄 변환 시작"):
                     with st.spinner("변환 중..."):
                         # 묶음배송번호 생성
                         bundle_numbers = generate_bundle_numbers(df)
