@@ -77,29 +77,28 @@ def convert_data_to_reshipment(df, bundle_numbers=None):
     return pd.DataFrame(converted_data)
 
 def create_excel_file(converted_df):
-    """재발송 양식 엑셀 파일 생성 (템플릿 기반)"""
-    # 템플릿 파일 경로
-    template_file = '수기_재발송양식.xlsx'
-    
+    """재발송 양식 엑셀 파일 생성 (하드코딩된 템플릿 구조)"""
     # 메모리에서 엑셀 파일 생성
     output = io.BytesIO()
     
-    # 템플릿 파일이 있으면 복사, 없으면 새로 생성
-    if os.path.exists(template_file):
-        # 템플릿 파일을 메모리로 복사
-        with open(template_file, 'rb') as f:
-            template_data = f.read()
-        output.write(template_data)
-        output.seek(0)
-        
-        # 템플릿 파일 로드
-        workbook = openpyxl.load_workbook(output)
-        worksheet = workbook.active
-    else:
-        # 템플릿이 없으면 새로 생성
-        workbook = openpyxl.Workbook()
-        worksheet = workbook.active
-        
+    # 새 워크북 생성
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    
+    # 원본 템플릿의 정확한 헤더 (31개 칼럼)
+    headers = [
+        '* F/C', '* 주문유형', '* 배송처', '* 고객ID', '판매채널', '* 묶음배송번호', '* 품목코드', 
+        '품목명', '옵션', '가격', '* 품목수량', '주문자', '* 받는사람명', '주문자 전화번호', 
+        '* 받는사람 전화번호', '* 받는사람 우편번호', '* 받는사람 주소', '배송메세지', '* 주문일자', 
+        '상품주문번호', '주문번호(참조)', '주문중개채널(상세)', '박스구분', '상세배송유형', 
+        '새벽배송 SMS 전송', '새벽배송 현관비밀번호', '위험물 구분', '* 주문중개채널', 
+        'API 연동용 판매자ID', '* 주문시간', '받는사람 핸드폰'
+    ]
+    
+    # 헤더 입력 (1행)
+    for col, header in enumerate(headers, 1):
+        worksheet.cell(row=1, column=col, value=header)
+    
     # 데이터 입력 (2행부터)
     start_row = 2
     for idx, row in converted_df.iterrows():
@@ -113,30 +112,39 @@ def create_excel_file(converted_df):
             postal_code = '00000'  # 빈 값이면 00000
         
         # 필수고정값들 (모든 행에 동일하게 입력)
-        worksheet.cell(row=current_row, column=1, value="NS001")      # F/C
-        worksheet.cell(row=current_row, column=2, value="7")          # 주문유형
-        worksheet.cell(row=current_row, column=3, value="17")         # 배송처
-        worksheet.cell(row=current_row, column=4, value="90015746")   # 고객ID
-        worksheet.cell(row=current_row, column=5, value="NFA")        # 판매채널 (고정값)
-        worksheet.cell(row=current_row, column=6, value=str(row.get('묶음배송번호', '')))  # 묶음배송번호
-        worksheet.cell(row=current_row, column=7, value=str(row.get('품목코드', '')))     # 품목코드
-        worksheet.cell(row=current_row, column=8, value="")           # 빈 컬럼
-        worksheet.cell(row=current_row, column=9, value="")           # 빈 컬럼
+        worksheet.cell(row=current_row, column=1, value="NS001")      # * F/C
+        worksheet.cell(row=current_row, column=2, value="7")          # * 주문유형
+        worksheet.cell(row=current_row, column=3, value="17")         # * 배송처
+        worksheet.cell(row=current_row, column=4, value="90015746")   # * 고객ID
+        worksheet.cell(row=current_row, column=5, value="NFA")        # 판매채널
+        worksheet.cell(row=current_row, column=6, value=str(row.get('묶음배송번호', '')))  # * 묶음배송번호
+        worksheet.cell(row=current_row, column=7, value=str(row.get('품목코드', '')))     # * 품목코드
+        worksheet.cell(row=current_row, column=8, value="")           # 품목명
+        worksheet.cell(row=current_row, column=9, value="")           # 옵션
         worksheet.cell(row=current_row, column=10, value=str(row.get('가격', '')))       # 가격
-        worksheet.cell(row=current_row, column=11, value=str(row.get('품목수량', '')))   # 품목수량
-        worksheet.cell(row=current_row, column=12, value="")          # 빈 컬럼
-        worksheet.cell(row=current_row, column=13, value=str(row.get('받는사람명', ''))) # 받는사람명
-        worksheet.cell(row=current_row, column=14, value="")          # 빈 컬럼
-        worksheet.cell(row=current_row, column=15, value=str(row.get('받는사람 전화번호', ''))) # 받는사람 전화번호
-        worksheet.cell(row=current_row, column=16, value=postal_code) # 받는사람 우편번호 (5자리 고정)
-        worksheet.cell(row=current_row, column=17, value=str(row.get('받는사람 주소', ''))) # 받는사람 주소
-        worksheet.cell(row=current_row, column=18, value="")          # 빈 컬럼
-        worksheet.cell(row=current_row, column=19, value=str(row.get('주문일자', '')))   # 주문일자
-        worksheet.cell(row=current_row, column=28, value="SELF")      # 주문중개채널
-        worksheet.cell(row=current_row, column=30, value="09:00:00")  # 주문시간
+        worksheet.cell(row=current_row, column=11, value=str(row.get('품목수량', '')))   # * 품목수량
+        worksheet.cell(row=current_row, column=12, value="")          # 주문자
+        worksheet.cell(row=current_row, column=13, value=str(row.get('받는사람명', ''))) # * 받는사람명
+        worksheet.cell(row=current_row, column=14, value="")          # 주문자 전화번호
+        worksheet.cell(row=current_row, column=15, value=str(row.get('받는사람 전화번호', ''))) # * 받는사람 전화번호
+        worksheet.cell(row=current_row, column=16, value=postal_code) # * 받는사람 우편번호
+        worksheet.cell(row=current_row, column=17, value=str(row.get('받는사람 주소', ''))) # * 받는사람 주소
+        worksheet.cell(row=current_row, column=18, value="")          # 배송메세지
+        worksheet.cell(row=current_row, column=19, value=str(row.get('주문일자', '')))   # * 주문일자
+        worksheet.cell(row=current_row, column=20, value="")          # 상품주문번호
+        worksheet.cell(row=current_row, column=21, value="")          # 주문번호(참조)
+        worksheet.cell(row=current_row, column=22, value="")          # 주문중개채널(상세)
+        worksheet.cell(row=current_row, column=23, value="")          # 박스구분
+        worksheet.cell(row=current_row, column=24, value="")          # 상세배송유형
+        worksheet.cell(row=current_row, column=25, value="")          # 새벽배송 SMS 전송
+        worksheet.cell(row=current_row, column=26, value="")          # 새벽배송 현관비밀번호
+        worksheet.cell(row=current_row, column=27, value="")          # 위험물 구분
+        worksheet.cell(row=current_row, column=28, value="SELF")      # * 주문중개채널
+        worksheet.cell(row=current_row, column=29, value="")          # API 연동용 판매자ID
+        worksheet.cell(row=current_row, column=30, value="09:00:00")  # * 주문시간
+        worksheet.cell(row=current_row, column=31, value="")          # 받는사람 핸드폰
     
     # 파일 저장
-    output = io.BytesIO()
     workbook.save(output)
     output.seek(0)
     return output
